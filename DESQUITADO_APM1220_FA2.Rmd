@@ -1,0 +1,116 @@
+---
+title: "2021025081_APM1220_FA2"
+author: "Yuichi Desquitado"
+date: "2024-09-10"
+output: html_document
+---
+
+# APM1120 Applied Multivariate Data Analysis
+## Formative Assessment 2
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
+library(dplyr)
+library(car)
+library(psych)
+library(lmtest)
+
+df <- read.csv("D:\\Users\\Yuichi Desquitado\\Documents\\School\\APM1220\\FA2\\Political Interest.csv",
+               header = TRUE)
+df <- df %>%
+  mutate(education_level = recode_factor(education_level, '1' = "School", '2' = "College", '3' = "University")) %>%
+  mutate(gender = recode_factor(gender, '1' = "Male", '2' = "Female"))
+df
+
+anovaResult <- aov(political_interest ~ gender * education_level,
+                   data = df)
+```
+
+Before doing an ANOVA, we need to check if the data set follows the assumptions.
+
+## Assumption 1 - The dependent variable is continuous and it has categorical independent variables
+
+```{r}
+describe(df)
+
+ggplot(data = df) +
+  geom_bar(aes(x = political_interest, 
+               fill = gender)) +
+  facet_grid(~ education_level)
+
+print(unique(df$gender))
+print(unique(df$education_level))
+```
+
+## Assumption 2 - The data are independently observed.
+
+```{r}
+summary(df)
+
+durbinWatsonTest(residuals(anovaResult))
+```
+
+Having a p-value greater than 0.05, the said data set is independently observed.
+
+## Assumption 3 - There must be no outliers.
+
+```{r}
+ggplot(data = df) + 
+  geom_boxplot(aes(x = education_level, 
+                   y = political_interest,
+                   fill = gender),
+               outlier.color = "red")
+```
+
+Based from the boxplot, there are no labeled outliers, thus it passes the assumption 3.
+
+# Assumption 4 - The data set is normal.
+
+For this, we will use visual inspection of its Q-Q plot and a Shapiro-Wilk's Test on the residuals of the data set.
+
+```{r}
+anovaResult <- aov(political_interest ~ gender * education_level,
+                   data = df)
+residual <- residuals(anovaResult)
+qqnorm(residual)
+qqline(residual, col = "red")
+shapiro.test(residual)
+```
+
+The plot tend to run along the red reference line, implying its normality. Moreover, the Shapiro-Wilk's Test yielded a 0.1241 p-value, giving the researchers enough evidence to reject the null hypothesis, thus normal.
+
+# Assumption 5 - The data set has homogeneity of variance
+
+We will be using a Levene's Test.
+
+```{r}
+leveneTest(political_interest ~ gender * education_level, data = df)
+```
+
+The Levene's Test shown a p-value higher than 0.05, indicating the homogeneity of variances.
+
+Seeing that no assumption is violated, we may proceed with the ANOVA.
+
+```{r}
+summary(anovaResult)
+
+TukeyHSD(anovaResult)
+
+interaction.plot(df$gender, 
+                 df$education_level, 
+                 df$political_interest,
+                 col = c("red", "blue", "green"), 
+                 lty = 1, 
+                 type = "b",
+                 legend = TRUE)
+```
+
+The summary of ANOVA shows that gender has no effect to the political interest, while education level has greatly high significance at p-value = <2e-16, meanwhile the interaction between gender and education level is highly significant at p-value = 0.00159 > alpha.
+
+The Tukey comparison shows that no significance was observed among the genders, just like how an earlier assessment affirmed its significance, yet there are significant differences in education level, such as college to school, university to school, and university to college.
+
+With no significance: Female School to Male School, College to Female School, Female College to Male College
+
+In finality, we _fail to reject_ the effect of gender in political interest, while we _reject_ the null hypothesis for education level and interaction of gender and education level.
